@@ -32,10 +32,11 @@ import wixAnimationsFrontend from 'wix-animations-frontend';
 
 // ---- Names that must match the CMS and your page URLs ----------------------
 
+// Collection IDs on this site (Wix named them on import; display names in brackets).
 export const COLLECTIONS = {
-    continents: 'Continents',
-    countries: 'Countries',
-    banknotes: 'Banknotes',
+    continents: 'Import1',  // "Continents"
+    countries: 'Import3',   // "Countries"
+    banknotes: 'Import2',   // "Banknotes"
 };
 
 // Dynamic page URL prefixes (set in BUILD-GUIDE step 5).
