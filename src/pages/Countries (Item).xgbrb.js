@@ -1,8 +1,8 @@
 /**
  * country-item.js: code for the dynamic page "Countries (Item)".
  * ----------------------------------------------------------------------------
- * URL: /country/{slug}               e.g. /country/egypt
- *      /country/{slug}?note={noteId} opens with that banknote card flipped
+ * URL: /countries/{slug}             e.g. /countries/egypt
+ *      /countries/{slug}?note={noteId} opens with that banknote card flipped
  * In Wix Studio: open the "Countries (Item)" page → Code panel → Page tab → paste.
  *
  * ELEMENT IDS ON THIS PAGE

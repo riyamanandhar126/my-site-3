@@ -1,7 +1,7 @@
 /**
  * continent-item.js: code for the dynamic page "Continents (Item)".
  * ----------------------------------------------------------------------------
- * URL: /continent/{slug}   e.g. /continent/africa
+ * URL: /continents/{slug}   e.g. /continents/africa
  * In Wix Studio: open the "Continents (Item)" page → Code panel → Page tab → paste.
  *
  * ELEMENT IDS ON THIS PAGE
