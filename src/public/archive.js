@@ -36,7 +36,7 @@ import wixAnimationsFrontend from 'wix-animations-frontend';
 export const COLLECTIONS = {
     continents: 'Import1',  // "Continents"
     countries: 'Import3',   // "Countries"
-    banknotes: 'Import2',   // "Banknotes"
+    banknotes: 'Import4',   // "Banknotes"
 };
 
 // Dynamic page URL prefixes (set in BUILD-GUIDE step 5).
