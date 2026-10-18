@@ -1,153 +1,182 @@
 /**
- * home.js: code for the HOME page (Global Edition).
+ * Home page code: runs the finished template inside ONE Embed HTML element.
  * ----------------------------------------------------------------------------
- * In Wix Studio: open the Home page → Code panel → Page tab ("Home.js") → paste.
+ * Page: Home (the URL keeps the view, e.g.  /?country=egypt  or  /?continent=africa)
  *
- * ELEMENT IDS ON THIS PAGE
- *   Featured mosaic (1 large tile left, 2 stacked right)
- *   #featuredTile1, #featuredTile2, #featuredTile3       Containers (clickable)
- *   #featuredImage1, #featuredImage2, #featuredImage3    Images inside the tiles
- *   #featuredLabel1, #featuredLabel2, #featuredLabel3    Texts: "Featured : Architecture · …"
+ * ELEMENT ID ON THIS PAGE (the only one)
+ *   #archiveFrame   Embed HTML element (Add → Embed & Social → Embed HTML → Code)
+ *                   containing wix-embed/archive-embed.html
  *
- *   "Choose a continent" carousel
- *   #continentRepeater   Repeater (shows 3 / 2 / 1 cards at a time)
- *   #continentCard       Container inside each item (clickable)
- *   #continentImage      Image inside the item
- *   #continentName       Text inside the item: "Africa"
- *   #continentCount      Text inside the item: "12 countries"
- *   #continentPrev       Button: left arrow
- *   #continentNext       Button: right arrow
- *
- *   "Recently Added"
- *   #recentRepeater      Repeater (3 items)
- *   #recentCard          Container inside each item (clickable)
- *   #recentImage         Image inside the item
- *   #recentMeta          Text inside the item: "Egypt · Africa"
- *   #recentTitle         Text inside the item: building name
- *   #recentSub           Text inside the item: "50 Egyptian pound, Series A"
- *
- *   #homeMessage         Text shown only if the archive can't be loaded (Collapsed on load)
+ * What it does
+ *   1. Reads the three CMS collections. Collection permissions apply, so only
+ *      logged-in members (or admins) get data.
+ *   2. Turns Wix image values into Wix media links the frame can show.
+ *   3. Sends everything into the frame; the template draws Home, Continent and
+ *      Country views, search, tabs and flip cards.
+ *   4. Keeps the page URL in sync, so every view can be bookmarked and shared.
  * ----------------------------------------------------------------------------
  */
 
 import wixData from 'wix-data';
 import wixLocationFrontend from 'wix-location-frontend';
 import wixWindowFrontend from 'wix-window-frontend';
-import {
-    COLLECTIONS, continentUrl, noteUrl, plural, txt, setImage, fetchAll, countBy, bySlug,
-} from 'public/archive.js';
+import { authentication } from 'wix-members-frontend';
 
-const FEATURED_TILES = 3;
-const RECENT_COUNT = 3;
+const FRAME = '#archiveFrame';
 
-let continents = [];
-let carouselStart = 0;
+// Collection IDs on this site (the names Wix gave them when the CSVs were imported).
+const COLLECTIONS = {
+    continents: 'Import1', // "Continents"
+    countries: 'Import3',  // "Countries"
+    banknotes: 'Import4',  // "Banknotes"
+};
 
-$w.onReady(async function () {
-    $w('#homeMessage').collapse();
-    try {
-        const [continentList, countries, countryCounts] = await Promise.all([
-            fetchAll(COLLECTIONS.continents, (q) => q.ascending('sortOrder')),
-            fetchAll(COLLECTIONS.countries),
-            countBy(COLLECTIONS.countries, 'continent'),
-        ]);
-        continents = continentList.map((c) => ({ ...c, countryCount: countryCounts[c.slug] || 0 }));
-        const countryMap = bySlug(countries);
-        const continentMap = bySlug(continentList);
+// URL query keys that describe the current view.
+const ROUTE_KEYS = ['continent', 'country', 'view', 'note'];
 
-        await Promise.all([
-            loadFeatured(countryMap),
-            loadRecent(countryMap, continentMap),
-        ]);
-        setupCarousel();
-    } catch (err) {
-        console.error('Could not load the archive:', err);
-        $w('#homeMessage').text = 'Please log in to view the archive.';
-        $w('#homeMessage').expand();
-    }
+let payload = null;          // { data } or { error }
+let frameWaiting = false;    // the frame said "ready" before the data was loaded
+let ignoreUrlChangeUntil = 0;
+
+$w.onReady(function () {
+    $w(FRAME).onMessage((event) => handleFrameMessage(event.data || {}));
+
+    loadArchive().then((result) => {
+        payload = result;
+        if (frameWaiting) sendInit();
+    });
+
+    // Browser Back/Forward: show the matching view inside the frame.
+    wixLocationFrontend.onChange(() => {
+        if (Date.now() < ignoreUrlChangeUntil) return;
+        $w(FRAME).postMessage({ type: 'route', query: currentRoute() });
+    });
+
+    // After logging in, reload so the private data can be read.
+    authentication.onLogin(() => wixLocationFrontend.to(wixLocationFrontend.url));
 });
 
-// ---- Featured mosaic ----------------------------------------------------------
+// ---- Messages from the frame ------------------------------------------------
 
-/** Fills the 3 tiles from Banknotes where "featured" is ticked, in featuredOrder. */
-async function loadFeatured(countryMap) {
-    const res = await wixData.query(COLLECTIONS.banknotes)
-        .eq('featured', true)
-        .ascending('featuredOrder')
-        .limit(FEATURED_TILES)
-        .find();
-
-    for (let i = 1; i <= FEATURED_TILES; i++) {
-        const note = res.items[i - 1];
-        const tile = $w(`#featuredTile${i}`);
-        if (!note) { tile.collapse(); continue; }
-        const country = countryMap[note.country];
-        setImage($w(`#featuredImage${i}`), note.image, `${note.title} on the ${note.denomination} ${note.currency} banknote`);
-        $w(`#featuredLabel${i}`).text = `Featured : Architecture · ${note.title}${country ? `, ${country.title}` : ''}`;
-        tile.onClick(() => wixLocationFrontend.to(noteUrl(note)));
+function handleFrameMessage(msg) {
+    if (msg.type === 'ready') {
+        frameWaiting = true;
+        if (payload) sendInit();
+    } else if (msg.type === 'navigate') {
+        updateUrl(msg.query || {});
+        wixWindowFrontend.scrollTo(0, 0);
+    } else if (msg.type === 'auth') {
+        if (authentication.loggedIn()) {
+            authentication.logout();
+        } else {
+            authentication.promptLogin().catch(() => {});
+        }
     }
 }
 
-// ---- Continent carousel -------------------------------------------------------
-
-/** Cards per view: 3 on desktop, 2 on tablet, 1 on mobile. */
-function cardsPerView() {
-    const device = wixWindowFrontend.formFactor;
-    if (device === 'Mobile') return 1;
-    if (device === 'Tablet') return 2;
-    return 3;
+function sendInit() {
+    $w(FRAME).postMessage({
+        type: 'init',
+        data: payload.data,
+        error: payload.error,
+        query: currentRoute(),
+        member: { loggedIn: authentication.loggedIn() },
+    });
 }
 
-function setupCarousel() {
-    $w('#continentRepeater').onItemReady(($item, c) => {
-        setImage($item('#continentImage'), c.image, '');
-        $item('#continentName').text = c.title;
-        $item('#continentCount').text = plural(c.countryCount, 'country', 'countries');
-    });
-    $w('#continentCard').onClick((event) => {
-        const c = continents.find((x) => x._id === event.context.itemId);
-        if (c) wixLocationFrontend.to(continentUrl(c.slug));
-    });
-    $w('#continentPrev').onClick(() => moveCarousel(-1));
-    $w('#continentNext').onClick(() => moveCarousel(1));
-    renderCarousel();
+// ---- URL <-> view ---------------------------------------------------------------
+
+function currentRoute() {
+    const query = wixLocationFrontend.query || {};
+    const route = {};
+    ROUTE_KEYS.forEach((key) => { if (query[key]) route[key] = String(query[key]); });
+    return route;
 }
 
-function moveCarousel(direction) {
-    const perView = cardsPerView();
-    const maxStart = Math.max(0, continents.length - perView);
-    carouselStart = Math.min(maxStart, Math.max(0, carouselStart + direction));
-    renderCarousel();
+/** Writes the view into the page URL without reloading (e.g. ?country=egypt). */
+function updateUrl(route) {
+    ignoreUrlChangeUntil = Date.now() + 800;
+    const clean = {};
+    ROUTE_KEYS.forEach((key) => { if (route[key]) clean[key] = String(route[key]); });
+    const remove = ROUTE_KEYS.filter((key) => !clean[key]);
+    if (remove.length) wixLocationFrontend.queryParams.remove(remove);
+    if (Object.keys(clean).length) wixLocationFrontend.queryParams.add(clean);
 }
 
-function renderCarousel() {
-    const perView = cardsPerView();
-    $w('#continentRepeater').data = continents.slice(carouselStart, carouselStart + perView);
-    toggle($w('#continentPrev'), carouselStart > 0);
-    toggle($w('#continentNext'), carouselStart + perView < continents.length);
+// ---- CMS -> template data -------------------------------------------------------
+
+async function fetchAll(collection, sortField) {
+    let res = await wixData.query(collection).ascending(sortField).limit(1000).find();
+    const items = [...res.items];
+    while (res.hasNext()) {
+        res = await res.next();
+        items.push(...res.items);
+    }
+    return items;
 }
 
-const toggle = (button, enabled) => (enabled ? button.enable() : button.disable());
+/** wix:image://v1/<file>/<name>#... → https://static.wixstatic.com/media/<file> */
+function mediaUrl(value) {
+    if (!value || typeof value !== 'string') return '';
+    if (value.startsWith('wix:image://')) {
+        const file = value.split('/')[3];
+        return file ? `https://static.wixstatic.com/media/${file}` : '';
+    }
+    if (value.startsWith('https://static.wixstatic.com/')) return value;
+    return '';
+}
 
-// ---- Recently added -------------------------------------------------------------
+const text = (value) => (value === undefined || value === null ? '' : String(value));
 
-async function loadRecent(countryMap, continentMap) {
-    const res = await wixData.query(COLLECTIONS.banknotes)
-        .descending('addedDate')
-        .limit(RECENT_COUNT)
-        .find();
+async function loadArchive() {
+    try {
+        const [continents, countries, banknotes] = await Promise.all([
+            fetchAll(COLLECTIONS.continents, 'sortOrder'),
+            fetchAll(COLLECTIONS.countries, 'title'),
+            fetchAll(COLLECTIONS.banknotes, 'sortOrder'),
+        ]);
 
-    $w('#recentRepeater').onItemReady(($item, note) => {
-        const country = countryMap[note.country];
-        const continent = country ? continentMap[country.continent] : null;
-        setImage($item('#recentImage'), note.image, `${note.title} on the ${note.denomination} ${note.currency} banknote`);
-        $item('#recentMeta').text = [country && country.title, continent && continent.title].filter(Boolean).join('  ·  ') || ' ';
-        $item('#recentTitle').text = txt(note.title, 'Untitled building');
-        $item('#recentSub').text = [`${note.denomination || ''} ${note.currency || ''}`.trim(), note.series].filter(Boolean).join(', ') || ' ';
-    });
-    $w('#recentCard').onClick((event) => {
-        const note = $w('#recentRepeater').data.find((n) => n._id === event.context.itemId);
-        if (note) wixLocationFrontend.to(noteUrl(note));
-    });
-    $w('#recentRepeater').data = res.items;
+        return {
+            data: {
+                continents: continents.map((c) => ({
+                    slug: text(c.slug),
+                    name: text(c.title),
+                    intro: text(c.intro),
+                    image: mediaUrl(c.image),
+                    mapImage: mediaUrl(c.mapImage),
+                })),
+                countries: countries.map((c) => ({
+                    slug: text(c.slug),
+                    name: text(c.title),
+                    continent: text(c.continent),
+                    currency: text(c.currency),
+                    authority: text(c.authority),
+                    image: mediaUrl(c.image),
+                    sources: text(c.sources),
+                })),
+                banknotes: banknotes.map((n) => ({
+                    id: text(n.noteId || n._id),
+                    country: text(n.country),
+                    denomination: text(n.denomination),
+                    currency: text(n.currency),
+                    building: text(n.title) || 'Untitled building',
+                    series: text(n.series),
+                    city: text(n.city),
+                    architect: text(n.architect),
+                    yearBuilt: text(n.yearBuilt),
+                    yearIssued: text(n.yearIssued),
+                    added: n.addedDate ? new Date(n.addedDate).toISOString().slice(0, 10) : '',
+                    image: mediaUrl(n.image),
+                    info: text(n.info),
+                })),
+                featured: banknotes
+                    .filter((n) => n.featured)
+                    .sort((a, b) => (Number(a.featuredOrder) || 99) - (Number(b.featuredOrder) || 99))
+                    .map((n) => text(n.noteId || n._id)),
+            },
+        };
+    } catch (err) {
+        console.error('Could not load the archive:', err);
+        return { error: 'Please log in to view the archive.' };
+    }
 }
