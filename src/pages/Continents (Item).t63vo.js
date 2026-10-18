@@ -5,7 +5,6 @@
  * In Wix Studio: open the "Continents (Item)" page → Code panel → Page tab → paste.
  *
  * ELEMENT IDS ON THIS PAGE
- *   #dynamicDataset      Dataset Wix adds automatically to every dynamic page
  *   #continentEyebrow    Text: "CONTINENT" (static, no code needed; listed for completeness)
  *   #continentTitle      Text: "Africa"
  *   #continentIntro      Text: short introduction
@@ -26,7 +25,7 @@
 
 import wixLocationFrontend from 'wix-location-frontend';
 import {
-    COLLECTIONS, countryUrl, plural, txt, setImage, fetchAll, countBy,
+    COLLECTIONS, countryUrl, plural, txt, setImage, fetchAll, countBy, itemFromUrl,
 } from 'public/archive.js';
 
 const PAGE_SIZE = 9; // countries shown before "Show more countries"
@@ -38,8 +37,11 @@ $w.onReady(async function () {
     $w('#noCountries').collapse();
     $w('#showMoreCountries').collapse();
 
-    await $w('#dynamicDataset').onReadyAsync();
-    const continent = $w('#dynamicDataset').getCurrentItem();
+    // Which continent? Read from the URL: /continents/africa → "africa".
+    const continent = await itemFromUrl(COLLECTIONS.continents).catch((err) => {
+        console.error('Could not load this continent:', err);
+        return null;
+    });
     if (!continent) return;
 
     // Header block

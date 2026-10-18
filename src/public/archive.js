@@ -28,6 +28,7 @@
  */
 
 import wixData from 'wix-data';
+import wixLocationFrontend from 'wix-location-frontend';
 import wixAnimationsFrontend from 'wix-animations-frontend';
 
 // ---- Names that must match the CMS and your page URLs ----------------------
@@ -88,6 +89,19 @@ export async function countBy(collection, field) {
         counts[key] = group.count;
     });
     return counts;
+}
+
+/**
+ * The item a dynamic page is showing, found from the last part of the URL
+ * (/countries/egypt → the Countries item whose slug is "egypt").
+ * Used instead of the page's dataset, so no dataset ID is needed.
+ */
+export async function itemFromUrl(collection) {
+    const path = wixLocationFrontend.path || [];
+    const slug = decodeURIComponent(path[path.length - 1] || '').toLowerCase();
+    if (!slug) return null;
+    const res = await wixData.query(collection).eq('slug', slug).limit(1).find();
+    return res.items[0] || null;
 }
 
 /** Map of slug → item for a list of CMS items. */

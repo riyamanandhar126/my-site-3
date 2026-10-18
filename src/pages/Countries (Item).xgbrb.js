@@ -6,7 +6,6 @@
  * In Wix Studio: open the "Countries (Item)" page → Code panel → Page tab → paste.
  *
  * ELEMENT IDS ON THIS PAGE
- *   #dynamicDataset      Dataset Wix adds automatically to every dynamic page
  *
  *   Country header
  *   #countryThumb        Image: small picture left of the name
@@ -50,7 +49,7 @@
 import wixData from 'wix-data';
 import wixLocationFrontend from 'wix-location-frontend';
 import {
-    COLLECTIONS, continentUrl, txt, setImage, fetchAll,
+    COLLECTIONS, continentUrl, txt, setImage, fetchAll, itemFromUrl,
     fillNoteCard, flipCard, showFront,
 } from 'public/archive.js';
 
@@ -73,8 +72,11 @@ $w.onReady(async function () {
     wireCards();
     wireTabs();
 
-    await $w('#dynamicDataset').onReadyAsync();
-    country = $w('#dynamicDataset').getCurrentItem();
+    // Which country? Read from the URL: /countries/egypt → "egypt".
+    country = await itemFromUrl(COLLECTIONS.countries).catch((err) => {
+        console.error('Could not load this country:', err);
+        return null;
+    });
     if (!country) return;
 
     await fillHeader();
