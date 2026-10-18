@@ -428,12 +428,12 @@ button, input, select { font: inherit; color: inherit; }
         <p data-site="description">A research project documenting the buildings printed on the world's banknotes.</p>
       </div>
       <nav class="footer-col" aria-label="Explore">
-        <h2>Explore</h2>
+        <h2 data-site="footerTitle1">Explore</h2>
         <ul id="footerExplore"></ul>
       </nav>
       <nav class="footer-col" aria-label="Project">
-        <h2>Project</h2>
-        <ul>
+        <h2 data-site="footerTitle2">Project</h2>
+        <ul id="footerLinks2">
           <li><a href="#">About</a></li>
           <li><a href="#">Methodology</a></li>
           <li><a href="#">Research Team</a></li>
@@ -442,8 +442,8 @@ button, input, select { font: inherit; color: inherit; }
         </ul>
       </nav>
       <nav class="footer-col" aria-label="Resources">
-        <h2>Resources</h2>
-        <ul>
+        <h2 data-site="footerTitle3">Resources</h2>
+        <ul id="footerLinks3">
           <li><a href="#">Glossary</a></li>
           <li><a href="#">Sources &amp; archive</a></li>
           <li><a href="#">Cite this website</a></li>
@@ -525,12 +525,27 @@ function runApp() {
   'use strict';
 
   const A = window.ARCHIVE;
-  A.site = A.site || {
+  // Site-wide words and colors. Inside Wix they come from the "Site Settings"
+  // CMS collection; anything left empty there falls back to these defaults.
+  A.site = Object.assign({
     nameLine1: 'architecture',
     nameLine2: 'in your wallet',
     tagline: 'A global analysis of architecture on banknotes',
     description: "A research project documenting the buildings printed on the world's banknotes.",
-  };
+    searchPlaceholder: 'Search Continents, Countries or Banknotes',
+    headingContinents: 'Choose a continent',
+    headingRecent: 'Recently Added',
+    headingCountries: 'Choose a country',
+    featuredLabel: 'Featured : Architecture',
+    footerTitle1: 'Explore',
+    footerTitle2: 'Project',
+    footerTitle3: 'Resources',
+    menu: '',          // empty = keep the built-in top menu
+    footerLinks2: '',  // empty = keep the built-in links
+    footerLinks3: '',
+    copyright: '',     // empty = "© <year> <site name>"
+  }, A.site || {});
+  const S = A.site;
   A.featured = A.featured || [];
   const EMBED = window.ARCHIVE_EMBED || null;
   // Grey "image" placeholder, built in so it works without any image files.
@@ -583,9 +598,55 @@ function runApp() {
 
   // ---- Shared chrome: branding, continent tabs, footer ----
   document.querySelectorAll('[data-site]').forEach((el) => {
-    el.textContent = A.site[el.dataset.site];
+    if (S[el.dataset.site]) el.textContent = S[el.dataset.site];
   });
-  $('#footerYear').textContent = `© ${new Date().getFullYear()} ${A.site.nameLine1} ${A.site.nameLine2}`;
+  $('#searchInput').placeholder = S.searchPlaceholder;
+  $('#footerYear').textContent = S.copyright || `© ${new Date().getFullYear()} ${S.nameLine1} ${S.nameLine2}`;
+
+  // Colors from Site Settings (only valid #hex values are used).
+  const COLOR_VARS = {
+    colorBrand: '--green', colorAccent: '--gold', colorAccentLight: '--gold-light',
+    colorPanel: '--paper', colorText: '--ink',
+  };
+  Object.entries(COLOR_VARS).forEach(([key, cssVar]) => {
+    const value = String(S[key] || '').trim();
+    if (/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(value)) document.documentElement.style.setProperty(cssVar, value);
+  });
+
+  /**
+   * Menu text from Site Settings: "Label | link ; Label | link".
+   * Links: home, continents, countries, banknotes, continent:africa,
+   * country:egypt, a full https:// address, or # for none.
+   */
+  function parseLinks(textValue) {
+    return String(textValue || '').split(';').map((part) => {
+      const [label, target] = part.split('|').map((x) => (x || '').trim());
+      if (!label) return null;
+      const t = (target || '#').toLowerCase();
+      let href = '#'; let nav = ''; let external = false;
+      if (/^https?:\/\//i.test(target || '')) { href = target; external = true; }
+      else if (t === 'home') href = 'index.html';
+      else if (t === 'continents') href = 'index.html#continents';
+      else if (t === 'countries') { href = '?view=countries'; nav = 'countries'; }
+      else if (t === 'banknotes') { href = '?view=banknotes'; nav = 'banknotes'; }
+      else {
+        const m = t.match(/^(continent|country):([a-z0-9-]+)$/);
+        if (m) href = link({ [m[1]]: m[2] });
+      }
+      return `<a href="${esc(href)}"${nav ? ` data-nav="${nav}"` : ''}${external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${esc(label)}</a>`;
+    }).filter(Boolean);
+  }
+  if (S.menu) {
+    const items = parseLinks(S.menu);
+    if (items.length) {
+      $('.topnav').innerHTML = items.join('') +
+        '<span class="topnav-lang">EN</span><a href="#" class="topnav-signin" data-auth>Sign In</a>';
+    }
+  }
+  [['footerLinks2', S.footerLinks2], ['footerLinks3', S.footerLinks3]].forEach(([id, value]) => {
+    const items = parseLinks(value);
+    if (items.length) $(`#${id}`).innerHTML = items.map((a) => `<li>${a}</li>`).join('');
+  });
   $('#footerExplore').innerHTML = A.continents
     .map((c) => `<li><a href="${link({ continent: c.slug })}">${esc(c.name)}</a></li>`).join('');
 
@@ -707,12 +768,12 @@ function runApp() {
         ${featured.map((n, i) => `
           <a class="tile${i === 0 ? ' tile-lg' : ''}" href="${noteLink(n)}">
             <img src="${esc(img(n.image))}" alt="">
-            <span class="tile-label">Featured : Architecture · ${esc(`${n.building}, ${countryOf(n.country).name}`)}</span>
+            <span class="tile-label">${esc(S.featuredLabel)} · ${esc(`${n.building}, ${countryOf(n.country).name}`)}</span>
           </a>`).join('')}
       </section>
 
       <section class="block" id="continents" aria-labelledby="h-continents">
-        <h2 class="h2" id="h-continents">Choose a continent</h2>
+        <h2 class="h2" id="h-continents">${esc(S.headingContinents)}</h2>
         <div class="carousel">
           <button type="button" class="car-btn car-prev" aria-label="Previous continents">${arrow('prev')}</button>
           <div class="car-track">
@@ -723,7 +784,7 @@ function runApp() {
       </section>
 
       <section class="block" aria-labelledby="h-recent">
-        <h2 class="h2" id="h-recent">Recently Added</h2>
+        <h2 class="h2" id="h-recent">${esc(S.headingRecent)}</h2>
         <div class="grid3">
           ${recent.map((n) => {
             const c = countryOf(n.country);
@@ -757,7 +818,7 @@ function runApp() {
         </figure>
       </section>
       <section class="block" aria-labelledby="h-countries">
-        <h2 class="h2" id="h-countries">Choose a country</h2>
+        <h2 class="h2" id="h-countries">${esc(S.headingCountries)}</h2>
         <p class="count-line">${esc(countryCount(list.length))}</p>
         ${list.length ? '<div class="grid3" id="countryGrid"></div>' : '<p class="empty">No countries yet</p>'}
         <div class="center"><button type="button" class="btn-outline" id="moreCountries" hidden>Show more countries</button></div>
@@ -892,7 +953,8 @@ function runApp() {
 
   function renderCountriesIndex() {
     setTitle('Countries');
-    $('[data-nav="countries"]').setAttribute('aria-current', 'page');
+    const navCountries = $('[data-nav="countries"]');
+    if (navCountries) navCountries.setAttribute('aria-current', 'page');
     main.innerHTML = `
       <h1 class="display" style="margin-bottom:28px">Countries</h1>
       <div class="country-index">
@@ -909,7 +971,8 @@ function runApp() {
 
   function renderBanknotesIndex() {
     setTitle('Banknote Images');
-    $('[data-nav="banknotes"]').setAttribute('aria-current', 'page');
+    const navBanknotes = $('[data-nav="banknotes"]');
+    if (navBanknotes) navBanknotes.setAttribute('aria-current', 'page');
     main.innerHTML = `
       <h1 class="display">Banknote Images</h1>
       <p class="muted">${plural(A.banknotes.length, 'banknote')} · click a card to read the research</p>

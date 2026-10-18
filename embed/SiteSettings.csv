@@ -1,0 +1,22 @@
+title,key,value,help
+Site name (line 1),nameLine1,architecture,Big text in the logo
+Site name (line 2),nameLine2,in your wallet,Smaller text under it
+Tagline,tagline,A global analysis of architecture on banknotes,Line under the logo
+Footer description,description,A research project documenting the buildings printed on the world's banknotes.,Text under the logo in the footer
+Search hint,searchPlaceholder,"Search Continents, Countries or Banknotes",Grey text inside the search bar
+Top menu,menu,About the Project | # ; Continents | continents ; Countries | countries ; Banknote Images | banknotes ; About | # ; Contact | #,"Label | link ; Label | link. Links: home, continents, countries, banknotes, continent:africa, country:egypt, a full https:// address, or # for none"
+Home heading: continents,headingContinents,Choose a continent,
+Home heading: recent,headingRecent,Recently Added,
+Continent page heading,headingCountries,Choose a country,
+Featured label,featuredLabel,Featured : Architecture,Label on the featured tiles
+Footer column 1 title,footerTitle1,Explore,This column lists the continents automatically
+Footer column 2 title,footerTitle2,Project,
+Footer column 2 links,footerLinks2,About | # ; Methodology | # ; Research Team | # ; Publications | # ; Contact | #,Same format as Top menu
+Footer column 3 title,footerTitle3,Resources,
+Footer column 3 links,footerLinks3,Glossary | # ; Sources & archive | # ; Cite this website | # ; Image Credits | #,Same format as Top menu
+Copyright line,copyright,,Leave empty for automatic: © year + site name
+Brand color,colorBrand,#354A43,"Logo, headings, footer background (hex like #354A43)"
+Accent color,colorAccent,#A88A4A,Gold labels
+Footer heading color,colorAccentLight,#C9A85E,
+Panel color,colorPanel,#F2F1EB,Search bar and stats strip
+Text color,colorText,#2A2B29,

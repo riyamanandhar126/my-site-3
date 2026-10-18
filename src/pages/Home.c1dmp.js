@@ -3,6 +3,11 @@
  * ----------------------------------------------------------------------------
  * Page: Home (the URL keeps the view, e.g.  /?country=egypt  or  /?continent=africa)
  *
+ * EDITABLE WITHOUT CODE (in the CMS)
+ *   Continents, Countries, Banknotes: all content and images
+ *   Site Settings: site name, tagline, search hint, top menu, headings,
+ *                  footer titles and links, copyright line, colors
+ *
  * ELEMENT ID ON THIS PAGE (the only one)
  *   #archiveFrame   Embed HTML element (Add → Embed & Social → Embed HTML → Code)
  *                   containing wix-embed/archive-embed.html
@@ -30,6 +35,10 @@ const COLLECTIONS = {
     countries: 'Import3',  // "Countries"
     banknotes: 'Import4',  // "Banknotes"
 };
+
+// Site Settings collection (site name, menu, headings, colors). Wix may name an
+// imported collection "Import5"; every ID listed here is tried in order.
+const SETTINGS_COLLECTION_IDS = ['SiteSettings', 'Import5'];
 
 // URL query keys that describe the current view.
 const ROUTE_KEYS = ['continent', 'country', 'view', 'note'];
@@ -128,16 +137,37 @@ function mediaUrl(value) {
 
 const text = (value) => (value === undefined || value === null ? '' : String(value));
 
+/** Site Settings rows (key + value) → { nameLine1: '…', menu: '…', … }. Empty values are skipped. */
+async function loadSettings() {
+    for (const id of SETTINGS_COLLECTION_IDS) {
+        try {
+            const res = await wixData.query(id).limit(1000).find();
+            const site = {};
+            res.items.forEach((row) => {
+                const key = text(row.key).trim();
+                const value = text(row.value).trim();
+                if (key && value) site[key] = value;
+            });
+            return site;
+        } catch (err) {
+            // Collection with this ID doesn't exist (or isn't readable): try the next one.
+        }
+    }
+    return {};
+}
+
 async function loadArchive() {
     try {
-        const [continents, countries, banknotes] = await Promise.all([
+        const [continents, countries, banknotes, site] = await Promise.all([
             fetchAll(COLLECTIONS.continents, 'sortOrder'),
             fetchAll(COLLECTIONS.countries, 'title'),
             fetchAll(COLLECTIONS.banknotes, 'sortOrder'),
+            loadSettings(),
         ]);
 
         return {
             data: {
+                site,
                 continents: continents.map((c) => ({
                     slug: text(c.slug),
                     name: text(c.title),
