@@ -41,8 +41,8 @@ export const COLLECTIONS = {
 
 // Dynamic page URL prefixes (set in BUILD-GUIDE step 5).
 export const PATHS = {
-    continent: '/continent/',
-    country: '/country/',
+    continent: '/continents/',
+    country: '/countries/',
 };
 
 // Multi-State Box state IDs for the flip card.
