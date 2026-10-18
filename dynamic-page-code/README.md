@@ -1,12 +1,13 @@
 # Dynamic page code (waiting for the pages to exist)
 
+The Continent code is now in `src/pages/Continents (Item).t63vo.js`.
+
 Wix only creates page code files for pages that exist in the editor, and it
 ignores page files created anywhere else. So this code waits here until the
 two dynamic pages are added in Wix Studio (BUILD-GUIDE step 5).
 
 | File | Goes into |
 |---|---|
-| `continent-item.js` | the **Continents (Item)** page code, e.g. `src/pages/Continents (Item).xxxxx.js` |
 | `country-item.js` | the **Countries (Item)** page code, e.g. `src/pages/Countries (Item).xxxxx.js` |
 
 After you create the dynamic pages in the editor, Wix adds their code files to
